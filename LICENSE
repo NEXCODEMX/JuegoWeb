@@ -1,0 +1,127 @@
+LICENCIA DE USO
+Escondete del SAT
+===============================================================================
+
+Copyright (c) 2024 — Autor Original
+
+Todos los derechos reservados.
+
+-------------------------------------------------------------------------------
+
+TERMINOS Y CONDICIONES DE USO
+
+1. DEFINICIONES
+
+   "Software" hace referencia al archivo EscondeteDelSat.html y cualquier
+   version derivada, modificada o distribuida del mismo, incluyendo su codigo
+   fuente embebido (HTML, CSS, JavaScript).
+
+   "Autor" hace referencia al creador o creadores originales del Software.
+
+   "Usuario" hace referencia a cualquier persona fisica o juridica que acceda,
+   ejecute, copie, modifique o distribuya el Software.
+
+2. PERMISOS CONCEDIDOS
+
+   Se concede permiso, de forma gratuita, a cualquier persona que obtenga una
+   copia de este Software para:
+
+   a) Usar el Software con fines personales, educativos y de entretenimiento.
+
+   b) Estudiar el codigo fuente del Software con fines de aprendizaje sobre
+      desarrollo de videojuegos web, renderizado 3D con WebGL/Three.js, o
+      interfaces reactivas con Vue.js.
+
+   c) Realizar modificaciones al Software para uso personal no comercial.
+
+   d) Compartir el Software de forma no comercial, siempre que se mantenga
+      intacto el presente aviso de licencia y el credito al autor original.
+
+3. RESTRICCIONES
+
+   Queda expresamente prohibido:
+
+   a) USO COMERCIAL: Vender, sublicenciar, monetizar directamente o
+      indirectamente el Software o cualquier obra derivada del mismo sin
+      autorizacion escrita y previa del Autor.
+
+   b) REDISTRIBUCION MODIFICADA SIN ATRIBUCION: Distribuir versiones
+      modificadas del Software sin indicar claramente los cambios realizados
+      y sin mantener la atribucion al autor original.
+
+   c) USO EN PLATAFORMAS DE TERCEROS CON MONETIZACION: Publicar el Software
+      en plataformas de juegos, aplicaciones o servicios donde genere ingresos
+      directos o indirectos sin autorizacion del Autor.
+
+   d) ELIMINACION DE AVISOS: Eliminar o alterar cualquier aviso de copyright,
+      marca o atribucion presente en el Software.
+
+4. NATURALEZA SATIRICA Y EXENCION DE RESPONSABILIDAD
+
+   El Software es una obra de entretenimiento satirico que parodia
+   situaciones relacionadas con la administracion tributaria. El contenido
+   del juego es completamente ficticio. El Autor no promueve, alienta ni
+   facilita la evasion fiscal real ni ninguna actividad ilegal.
+
+   El Software se proporciona "TAL CUAL", sin garantia de ningun tipo,
+   expresa o implicita, incluyendo pero no limitandose a garantias de
+   comerciabilidad, idoneidad para un proposito particular y no infraccion.
+
+5. LIMITACION DE RESPONSABILIDAD
+
+   En ningun caso el Autor sera responsable de cualquier reclamo, daño u
+   otra responsabilidad, ya sea en una accion de contrato, agravio o de
+   otro tipo, que surja de, o en conexion con el Software o el uso u otros
+   tratos en el Software.
+
+6. LIBRERIAS DE TERCEROS
+
+   El Software hace uso de las siguientes librerias de codigo abierto,
+   cada una sujeta a sus propias licencias:
+
+   - Three.js (r128) — Licencia MIT
+     Copyright (c) 2010-2023 three.js authors
+     https://github.com/mrdoob/three.js/blob/dev/LICENSE
+
+   - Vue.js 3 — Licencia MIT
+     Copyright (c) 2018-present, Yuxi (Evan) You
+     https://github.com/vuejs/core/blob/main/LICENSE
+
+   - Font Awesome — Licencia SIL OFL 1.1 (iconos), MIT (codigo)
+     Copyright (c) Fonticons, Inc.
+     https://fontawesome.com/license
+
+   - Google Fonts (Press Start 2P, VT323, Oswald) — Licencia OFL / Apache 2.0
+     Segun la fuente especifica. Consultar fonts.google.com
+
+   El uso de este Software implica el uso de dichas librerias bajo sus
+   respectivos terminos de licencia.
+
+7. CONTACTO
+
+   Para solicitudes de uso comercial, autorizaciones especiales o cualquier
+   consulta relacionada con los terminos de esta licencia, comunicarse con
+   el Autor a traves del repositorio oficial del proyecto o del canal de
+   contacto indicado en la documentacion del mismo.
+
+8. ACEPTACION
+
+   El uso, copia, modificacion o distribucion del Software implica la
+   aceptacion plena de los terminos y condiciones establecidos en esta
+   Licencia.
+
+-------------------------------------------------------------------------------
+
+AVISO ADICIONAL
+
+Este proyecto es una parodia cultural con fines humoristicos sobre la
+experiencia cotidiana del ciudadano mexicano frente a la administracion
+fiscal. No representa la posicion oficial de ninguna institucion, partido
+politico o entidad gubernamental. Cualquier parecido con personas,
+organizaciones o eventos reales es coincidental y con fines exclusivamente
+satiricos.
+
+===============================================================================
+Escondete del SAT — Todos los derechos reservados sobre el codigo original.
+Las librerias de terceros conservan sus respectivos titulares de derechos.
+===============================================================================
