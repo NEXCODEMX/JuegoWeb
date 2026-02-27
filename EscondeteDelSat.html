@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escondete del SAT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<style>
+  :root {
+    --green: #00ff41;
+    --dark-green: #003010;
+    --yellow: #ffd700;
+    --red: #ff2233;
+    --blue: #0044ff;
+    --white: #f0f0f0;
+    --black: #050505;
+    --dark: #0a0a0a;
+    --panel: rgba(0,10,5,0.92);
+    --border: #00ff4155;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; font-family:'VT323',monospace; overflow:hidden; user-select:none; }
+  #app { width:100vw; height:100vh; position:relative; }
+  .scanlines {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+    pointer-events:none; z-index:9999;
+  }
+  .vignette {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+    pointer-events:none; z-index:9998;
+  }
+  #menu {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background: linear-gradient(135deg, #000 0%, #001a00 50%, #000 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:100;
+  }
+  .menu-bg-grid {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background-image: 
+      linear-gradient(rgba(0,255,65,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 20s linear infinite;
+  }
+  @keyframes gridMove { 0%{background-position:0 0;} 100%{background-position:40px 40px;} }
+  
+  .menu-logo {
+    position:relative; z-index:2; text-align:center; margin-bottom:40px;
+  }
+  .logo-main {
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(20px,4vw,48px);
+    color: var(--green);
+    text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41, 4px 4px 0 #003010;
+    letter-spacing:4px;
+    animation: logoGlow 2s ease-in-out infinite alternate;
+    display:block;
+  }
+  @keyframes logoGlow {
+    from { text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41, 4px 4px 0 #003010; }
+    to { text-shadow: 0 0 40px #00ff41, 0 0 80px #00ff41, 0 0 120px #00ff4180, 4px 4px 0 #003010; }
+  }
+  .logo-sub {
+    font-family:'VT323',monospace; font-size:18px; color:#00aa33;
+    margin-top:8px; letter-spacing:2px; display:block;
+  }
+  .logo-desc {
+    font-family:'VT323',monospace; font-size:14px; color:#005520;
+    margin-top:4px; letter-spacing:1px; display:block;
+  }
+  .sat-badge {
+    display:inline-block; background:#cc0000; color:#fff;
+    font-family:'Press Start 2P',monospace; font-size:10px;
+    padding:4px 10px; margin-top:12px; border:2px solid #ff4444;
+    box-shadow: 0 0 10px #cc000080; letter-spacing:1px;
+  }
+  .menu-panel {
+    position:relative; z-index:2;
+    background: linear-gradient(180deg, rgba(0,20,5,0.95), rgba(0,10,3,0.98));
+    border:2px solid var(--green);
+    box-shadow: 0 0 30px rgba(0,255,65,0.3), inset 0 0 30px rgba(0,255,65,0.05);
+    padding:30px 50px; min-width:320px; text-align:center;
+  }
+  .menu-panel::before {
+    content:''; position:absolute; top:4px; left:4px; right:4px; bottom:4px;
+    border:1px solid rgba(0,255,65,0.2); pointer-events:none;
+  }
+  .menu-btn {
+    display:block; width:100%; padding:14px 20px; margin:8px 0;
+    background: transparent; border:1px solid rgba(0,255,65,0.4);
+    color: var(--green); font-family:'Press Start 2P',monospace; font-size:11px;
+    cursor:pointer; letter-spacing:2px; position:relative; overflow:hidden;
+    transition: all 0.2s;
+  }
+  .menu-btn::before {
+    content:''; position:absolute; left:-100%; top:0; width:100%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(0,255,65,0.15), transparent);
+    transition: left 0.4s;
+  }
+  .menu-btn:hover::before { left:100%; }
+  .menu-btn:hover {
+    border-color: var(--green); color:#fff;
+    background: rgba(0,255,65,0.1);
+    box-shadow: 0 0 15px rgba(0,255,65,0.4);
+    transform: translateX(4px);
+  }
+  .menu-btn:active { transform:translateX(4px) scale(0.98); }
+  .menu-btn i { margin-right:10px; }
+  
+  .menu-btn.primary {
+    background: linear-gradient(135deg, rgba(0,255,65,0.15), rgba(0,180,45,0.2));
+    border-color: var(--green);
+    box-shadow: 0 0 10px rgba(0,255,65,0.3);
+  }
+  .menu-btn.danger { color:#ff4444; border-color:#ff444440; }
+  .menu-btn.danger:hover { background:rgba(255,0,0,0.1); box-shadow:0 0 15px rgba(255,0,0,0.3); }
+  .settings-panel {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.97); z-index:200;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .settings-box {
+    background: var(--panel); border:2px solid var(--green);
+    box-shadow: 0 0 40px rgba(0,255,65,0.3);
+    padding:30px; min-width:500px; max-width:600px; width:90%;
+    max-height:80vh; overflow-y:auto;
+  }
+  .settings-box::-webkit-scrollbar { width:6px; }
+  .settings-box::-webkit-scrollbar-track { background:#001a00; }
+  .settings-box::-webkit-scrollbar-thumb { background:#00ff41; }
+  .settings-title {
+    font-family:'Press Start 2P',monospace; font-size:14px;
+    color:var(--green); text-align:center; margin-bottom:24px;
+    letter-spacing:3px;
+  }
+  .setting-row { margin:16px 0; display:flex; align-items:center; gap:15px; }
+  .setting-label {
+    font-family:'Press Start 2P',monospace; font-size:9px;
+    color:#00aa33; min-width:130px; letter-spacing:1px;
+  }
+  .setting-control { flex:1; }
+  input[type=range] {
+    width:100%; accent-color:var(--green);
+    cursor:pointer;
+  }
+  select {
+    background:#001a00; border:1px solid var(--green); color:var(--green);
+    font-family:'VT323',monospace; font-size:16px; padding:4px 8px;
+    cursor:pointer; width:100%;
+  }
+  select option { background:#001a00; }
+  .key-bind {
+    background:#001a00; border:1px solid #00ff4160; color:var(--green);
+    font-family:'Press Start 2P',monospace; font-size:9px;
+    padding:6px 12px; cursor:pointer; min-width:60px; text-align:center;
+  }
+  .key-bind:hover { border-color:var(--green); background:rgba(0,255,65,0.1); }
+  #hud {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    pointer-events:none; z-index:50;
+  }
+  .hud-top {
+    position:absolute; top:10px; left:10px; right:10px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none;
+  }
+  .hud-panel {
+    background: rgba(0,5,2,0.85); border:1px solid rgba(0,255,65,0.5);
+    padding:8px 14px; backdrop-filter:blur(4px);
+    box-shadow: 0 0 10px rgba(0,255,65,0.2);
+  }
+  .hud-label {
+    font-family:'Press Start 2P',monospace; font-size:7px;
+    color:#00aa33; letter-spacing:1px; display:block; margin-bottom:4px;
+  }
+  .money-bar {
+    width:200px; height:14px; background:#001000;
+    border:1px solid #00ff4160; position:relative; overflow:hidden;
+  }
+  .money-fill {
+    height:100%; background: linear-gradient(90deg, #00aa22, #00ff41, #aaffcc);
+    transition: width 0.3s;
+    box-shadow: 0 0 8px #00ff41;
+  }
+  .money-fill.low { background: linear-gradient(90deg, #aa0000, #ff2222, #ff8888); box-shadow:0 0 8px #ff2222; }
+  .money-fill.medium { background: linear-gradient(90deg, #aa8800, #ffdd00, #ffff88); box-shadow:0 0 8px #ffdd00; }
+  .money-amount {
+    font-family:'VT323',monospace; font-size:18px; color:var(--green);
+    line-height:1;
+  }
+  .inventory-bar {
+    display:flex; gap:4px; align-items:center;
+  }
+  .inv-icon { font-size:16px; color:var(--yellow); }
+  .inv-amount { font-family:'VT323',monospace; font-size:20px; color:var(--yellow); }
+  .hud-timer {
+    font-family:'Press Start 2P',monospace; font-size:12px; color:var(--green);
+    text-align:center;
+  }
+  .hud-score {
+    font-family:'Press Start 2P',monospace; font-size:10px; color:var(--yellow);
+  }
+  .hud-status {
+    position:absolute; bottom:80px; left:50%; transform:translateX(-50%);
+    font-family:'VT323',monospace; font-size:22px; color:var(--yellow);
+    text-align:center; pointer-events:none;
+  }
+  .hud-crosshair {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:20px; height:20px; pointer-events:none;
+  }
+  .hud-crosshair::before, .hud-crosshair::after {
+    content:''; position:absolute; background:rgba(0,255,65,0.7);
+  }
+  .hud-crosshair::before { width:2px; height:100%; left:50%; transform:translateX(-50%); }
+  .hud-crosshair::after { height:2px; width:100%; top:50%; transform:translateY(-50%); }
+  .interact-hint {
+    position:absolute; bottom:120px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.85); border:1px solid var(--green);
+    font-family:'Press Start 2P',monospace; font-size:9px; color:var(--green);
+    padding:8px 16px; pointer-events:none; letter-spacing:1px;
+    box-shadow: 0 0 10px rgba(0,255,65,0.3);
+    animation: fadeInUp 0.2s;
+  }
+  @keyframes fadeInUp { from{opacity:0;transform:translateX(-50%) translateY(10px);} to{opacity:1;transform:translateX(-50%) translateY(0);} }
+  .float-number {
+    position:absolute; font-family:'Press Start 2P',monospace; font-size:14px;
+    pointer-events:none; z-index:200;
+    animation: floatUp 1.5s ease-out forwards;
+  }
+  .float-number.negative { color:#ff2233; text-shadow:0 0 10px #ff0000; }
+  .float-number.positive { color:#00ff41; text-shadow:0 0 10px #00ff41; }
+  .float-number.robbery { color:#ffaa00; text-shadow:0 0 10px #ffaa00; font-size:18px; }
+  @keyframes floatUp {
+    0%{opacity:1;transform:translateY(0) scale(1);}
+    50%{opacity:1;transform:translateY(-40px) scale(1.2);}
+    100%{opacity:0;transform:translateY(-80px) scale(0.8);}
+  }
+  .notif-stack {
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:6px; pointer-events:none; z-index:300;
+    min-width:400px; max-width:600px; align-items:center;
+  }
+  .notif {
+    background:rgba(0,0,0,0.92); border:1px solid;
+    font-family:'VT323',monospace; font-size:20px;
+    padding:8px 20px; text-align:center; width:100%;
+    animation: notifIn 0.3s ease-out;
+  }
+  @keyframes notifIn { from{opacity:0;transform:translateY(-20px);} to{opacity:1;transform:translateY(0);} }
+  .notif.warning { border-color:#ffaa00; color:#ffaa00; box-shadow:0 0 10px rgba(255,170,0,0.4); }
+  .notif.danger { border-color:#ff2233; color:#ff2233; box-shadow:0 0 10px rgba(255,0,0,0.4); }
+  .notif.info { border-color:#00aaff; color:#00aaff; box-shadow:0 0 10px rgba(0,170,255,0.3); }
+  .notif.success { border-color:#00ff41; color:#00ff41; box-shadow:0 0 10px rgba(0,255,65,0.3); }
+  .notif.funny { border-color:#ff00ff; color:#ff88ff; box-shadow:0 0 10px rgba(255,0,255,0.3); }
+  .minimap {
+    position:absolute; bottom:10px; right:10px;
+    width:130px; height:130px;
+    background:rgba(0,5,2,0.85); border:1px solid rgba(0,255,65,0.5);
+    overflow:hidden;
+  }
+  .minimap canvas { width:100%; height:100%; image-rendering:pixelated; }
+  .minimap-label {
+    position:absolute; top:2px; left:4px;
+    font-family:'Press Start 2P',monospace; font-size:6px; color:#00ff4188;
+    pointer-events:none;
+  }
+  .pause-overlay {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.8); z-index:500;
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+  }
+  .pause-box {
+    background:var(--panel); border:2px solid var(--green);
+    padding:30px 50px; text-align:center;
+    box-shadow:0 0 40px rgba(0,255,65,0.4);
+  }
+  .pause-title {
+    font-family:'Press Start 2P',monospace; font-size:20px; color:var(--green);
+    letter-spacing:4px; margin-bottom:24px;
+    text-shadow:0 0 20px #00ff41;
+  }
+  .shop-overlay {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.9); z-index:400;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .shop-box {
+    background:linear-gradient(135deg,#0d0005,#050012);
+    border:2px solid #ff00ff;
+    box-shadow:0 0 40px rgba(255,0,255,0.4);
+    padding:24px; width:700px; max-width:95vw; max-height:80vh; overflow-y:auto;
+  }
+  .shop-box::-webkit-scrollbar{width:6px;}
+  .shop-box::-webkit-scrollbar-thumb{background:#ff00ff;}
+  .shop-title {
+    font-family:'Press Start 2P',monospace; font-size:16px; color:#ff88ff;
+    text-align:center; margin-bottom:6px;
+    text-shadow:0 0 20px #ff00ff;
+  }
+  .shop-subtitle { font-family:'VT323',monospace; font-size:18px; color:#aa66aa; text-align:center; margin-bottom:20px; }
+  .shop-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+  .shop-item {
+    background:rgba(255,0,255,0.05); border:1px solid #ff00ff60;
+    padding:12px; cursor:pointer; transition:all 0.2s; position:relative;
+  }
+  .shop-item:hover { background:rgba(255,0,255,0.15); border-color:#ff00ff; box-shadow:0 0 15px rgba(255,0,255,0.3); }
+  .shop-item.owned { border-color:#00ff41; background:rgba(0,255,65,0.05); }
+  .shop-item.cant-afford { opacity:0.5; cursor:not-allowed; }
+  .item-icon { font-size:32px; color:#ff88ff; margin-bottom:8px; }
+  .item-name { font-family:'Press Start 2P',monospace; font-size:8px; color:#ff88ff; margin-bottom:6px; letter-spacing:1px; }
+  .item-desc { font-family:'VT323',monospace; font-size:15px; color:#cc88cc; margin-bottom:8px; }
+  .item-price { font-family:'VT323',monospace; font-size:18px; color:var(--yellow); }
+  .item-price span { color:#aa8800; font-size:13px; }
+  .item-iva { font-family:'VT323',monospace; font-size:12px; color:#ff6666; }
+  .gameover-overlay {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.95); z-index:600;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+  }
+  .gameover-title {
+    font-family:'Press Start 2P',monospace; font-size:clamp(20px,5vw,56px);
+    color:#ff2233; text-shadow:0 0 30px #ff0000, 0 0 60px #ff000080;
+    letter-spacing:4px; margin-bottom:12px;
+    animation:shake 0.5s ease-in-out;
+  }
+  @keyframes shake {
+    0%,100%{transform:translateX(0);}
+    25%{transform:translateX(-10px);}
+    75%{transform:translateX(10px);}
+  }
+  .gameover-reason { font-family:'VT323',monospace; font-size:24px; color:#ff8888; margin-bottom:30px; text-align:center; }
+  .stats-box {
+    background:rgba(0,5,2,0.9); border:1px solid var(--green);
+    padding:20px 40px; margin-bottom:24px; min-width:300px;
+  }
+  .stat-row { font-family:'VT323',monospace; font-size:20px; color:#88ff88; margin:6px 0; }
+  .stat-row span { color:var(--yellow); float:right; margin-left:20px; }
+  #gameCanvas {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+  }
+  .iva-warning {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(255,0,0,0.15); pointer-events:none; z-index:45;
+    border:4px solid #ff2233;
+    animation: ivaFlash 1s ease-in-out infinite;
+  }
+  @keyframes ivaFlash { 0%,100%{opacity:0.3;} 50%{opacity:1;} }
+  .ammo-bar {
+    position:absolute; bottom:10px; left:10px;
+    background:rgba(0,5,2,0.9); border:1px solid rgba(0,255,65,0.5);
+    padding:8px 14px; min-width:300px;
+    box-shadow:0 0 12px rgba(0,255,65,0.2);
+  }
+  .ammo-label { font-family:'Press Start 2P',monospace; font-size:7px; color:#00aa33; letter-spacing:1px; display:block; margin-bottom:6px; }
+  .ammo-slots { display:flex; gap:5px; }
+  .ammo-slot {
+    width:52px; height:58px; border:1px solid #00ff4130;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:12px; color:#555; gap:2px; position:relative; cursor:pointer;
+    transition:all 0.15s; background:rgba(0,0,0,0.4);
+  }
+  .ammo-slot:hover { border-color:#00ff4170; background:rgba(0,255,65,0.05); }
+  .ammo-slot.active {
+    border-color:var(--green); color:var(--green);
+    background:rgba(0,255,65,0.12);
+    box-shadow:0 0 8px rgba(0,255,65,0.4), inset 0 0 8px rgba(0,255,65,0.05);
+  }
+  .ammo-slot .slot-num {
+    position:absolute; top:2px; left:4px;
+    font-family:'Press Start 2P',monospace; font-size:6px; color:#00ff4155;
+  }
+  .ammo-slot.active .slot-num { color:var(--green); }
+  .ammo-slot .slot-icon { font-size:18px; line-height:1; }
+  .ammo-slot .slot-ammo { font-family:'VT323',monospace; font-size:14px; color:var(--yellow); line-height:1; }
+  .ammo-slot.empty-slot .slot-icon { font-size:12px; color:#333; }
+  .weapon-info {
+    font-family:'VT323',monospace; font-size:16px; color:#00ff41;
+    margin-top:5px; letter-spacing:1px;
+  }
+  .weapon-info .wi-ammo { color:var(--yellow); }
+  .weapon-info .wi-empty { color:#ff4444; animation: blink 0.5s step-end infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .shoot-flash {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(255,255,200,0.08); pointer-events:none; z-index:60;
+    animation:flashOut 0.06s forwards;
+  }
+  @keyframes flashOut { 0%{opacity:1} 100%{opacity:0} }
+  .hidden-indicator {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    font-family:'Press Start 2P',monospace; font-size:10px; color:#0044ff;
+    background:rgba(0,0,50,0.9); border:1px solid #0044ff;
+    padding:8px 16px; pointer-events:none;
+    box-shadow:0 0 20px rgba(0,68,255,0.5);
+  }
+  .controls-hint {
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    font-family:'Press Start 2P',monospace; font-size:7px; color:#00ff4166;
+    letter-spacing:1px; pointer-events:none; white-space:nowrap;
+  }
+  .loading-screen {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:#000; z-index:1000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .loading-title { font-family:'Press Start 2P',monospace; font-size:18px; color:var(--green); margin-bottom:20px; }
+  .loading-bar { width:300px; height:16px; border:1px solid var(--green); background:#001000; position:relative; }
+  .loading-fill { height:100%; background:var(--green); transition:width 0.1s; box-shadow:0 0 10px var(--green); }
+  .loading-text { font-family:'VT323',monospace; font-size:18px; color:#00aa33; margin-top:10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+  <div class="loading-screen" v-if="state==='loading'">
+    <div class="loading-title">CARGANDO...</div>
+    <div class="loading-bar"><div class="loading-fill" :style="{width:loadPct+'%'}"></div></div>
+    <div class="loading-text">{{ loadMsg }}</div>
+  </div>
+  <div id="menu" v-if="state==='menu'">
+    <div class="menu-bg-grid"></div>
+    <div class="menu-logo">
+      <span class="logo-main">ESCONDETE<br>DEL SAT</span>
+      <span class="logo-sub"><i class="fas fa-running"></i> Evade al SAT <i class="fas fa-running"></i></span>
+      <span class="logo-desc">Tarea para Programacion para Internet</span>
+      <div class="sat-badge">SAT - Abreviatura para SATANAS</div>
+    </div>
+    <div class="menu-panel">
+      <button class="menu-btn primary" @click="startGame">
+        <i class="fas fa-play"></i> {{ bestTime>0?'CONTINUAR EVADIENDO':'NUEVO JUEGO' }}
+      </button>
+      <button class="menu-btn" @click="state='settings'" v-if="bestTime>0">
+        <i class="fas fa-redo"></i> REINICIAR
+      </button>
+      <button class="menu-btn" @click="openSettings">
+        <i class="fas fa-cog"></i> CONFIGURACION
+      </button>
+      <button class="menu-btn" @click="state='credits'">
+        <i class="fas fa-info-circle"></i> CREDITOS
+      </button>
+    </div>
+    <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;">
+      <span style="font-family:'Press Start 2P',monospace;font-size:7px;color:#005520;letter-spacing:2px;">
+        NOTA: Este juego es ficticio y satirico. Paga tus impuestos.
+      </span>
+    </div>
+  </div>
+  <div class="settings-panel" v-if="state==='settings'">
+    <div class="settings-box">
+      <div class="settings-title"><i class="fas fa-cog"></i> CONFIGURACION</div>
+      <div class="setting-row">
+        <span class="setting-label">IDIOMA</span>
+        <div class="setting-control">
+          <select v-model="settings.lang">
+            <option value="es">Espanol (NINI)</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">VOLUMEN <br>MUSICA</span>
+        <div class="setting-control">
+          <input type="range" min="0" max="100" v-model="settings.musicVol">
+          <span style="font-family:VT323;color:var(--green);font-size:18px;">{{ settings.musicVol }}%</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">VOLUMEN <br>EFECTOS</span>
+        <div class="setting-control">
+          <input type="range" min="0" max="100" v-model="settings.sfxVol">
+          <span style="font-family:VT323;color:var(--green);font-size:18px;">{{ settings.sfxVol }}%</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">BRILLO</span>
+        <div class="setting-control">
+          <input type="range" min="50" max="150" v-model="settings.brightness">
+          <span style="font-family:VT323;color:var(--green);font-size:18px;">{{ settings.brightness }}%</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">SENSIB. MOUSE</span>
+        <div class="setting-control">
+          <input type="range" min="1" max="10" v-model="settings.sensitivity">
+          <span style="font-family:VT323;color:var(--green);font-size:18px;">{{ settings.sensitivity }}</span>
+        </div>
+      </div>
+      <div style="margin-top:20px;">
+        <div style="font-family:'Press Start 2P',monospace;font-size:9px;color:#00aa33;margin-bottom:12px;letter-spacing:2px;">CONTROLES</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="setting-row" v-for="(val,key) in settings.controls" :key="key" style="margin:4px 0;">
+            <span class="setting-label" style="font-size:8px;min-width:100px;">{{ controlLabels[key] }}</span>
+            <button class="key-bind" @click="rebindKey(key)">{{ val }}</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;">
+        <button class="menu-btn" style="width:auto;padding:10px 24px;" @click="saveSettings">
+          <i class="fas fa-save"></i> GUARDAR
+        </button>
+        <button class="menu-btn danger" style="width:auto;padding:10px 24px;" @click="closeSettings">
+          <i class="fas fa-times"></i> CANCELAR
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-panel" v-if="state==='credits'" style="flex-direction:column;gap:20px;">
+    <div class="settings-box" style="text-align:center;">
+      <div class="settings-title">CREDITOS</div>
+      <p style="font-family:VT323;font-size:22px;color:#88ff88;line-height:1.8;">
+        <strong style="color:var(--green);font-size:24px;">ESCONDETE DEL SAT</strong><br>
+        Tarea para Programacion para Internet<br><br>
+        <span style="color:#ffdd88;">Desarrollado con Vue.js 3 + Three.js</span><br>
+        Motor 3D: WebGL<br>
+        Audio: Web Audio API<br><br>
+        <span style="color:#ff8888;">AVISO: Juego de ficcion satirica, no me demanden, gracias.</span><br>
+        El SAT recuerda que evadir impuestos es ilegal.<br>
+        Esta aplicacion no promueve la evasion fiscal.<br>
+        <span style="color:#888;font-size:16px;">(pero el PRI si la promovio por 70 anos)</span>
+      </p>
+      <button class="menu-btn" style="margin-top:20px;" @click="state='menu'"><i class="fas fa-arrow-left"></i> REGRESAR</button>
+    </div>
+  </div>
+  <canvas id="gameCanvas" v-show="state==='playing'||state==='paused'||state==='shop'"></canvas>
+  <div id="hud" v-if="state==='playing'||state==='paused'||state==='shop'">
+    <div class="hud-top">
+      <div class="hud-panel">
+        <span class="hud-label"><i class="fas fa-credit-card"></i> DINERO EN TARJETA</span>
+        <div class="money-bar">
+          <div class="money-fill" :class="{low:playerMoney<3000,medium:playerMoney>=3000&&playerMoney<10000}" :style="{width:(playerMoney/maxMoney*100)+'%'}"></div>
+        </div>
+        <div class="money-amount" :style="{color:playerMoney<3000?'#ff2233':playerMoney<10000?'#ffdd00':'#00ff41'}">
+          ${{ formatMoney(playerMoney) }} MXN
+        </div>
+      </div>
+      <div class="hud-panel" style="text-align:center;">
+        <span class="hud-label" style="text-align:center;display:block;"><i class="fas fa-clock"></i> TIEMPO EVADIDO</span>
+        <div class="hud-timer">{{ formatTime(survivalTime) }}</div>
+        <div class="hud-score" style="margin-top:4px;"><i class="fas fa-star"></i> SCORE: {{ score }}</div>
+      </div>
+      <div class="hud-panel">
+        <span class="hud-label"><i class="fas fa-wallet"></i> EFECTIVO</span>
+        <div class="inventory-bar">
+          <i class="fas fa-money-bill-wave inv-icon"></i>
+          <span class="inv-amount">${{ formatMoney(cashInventory) }}</span>
+          <span style="font-family:VT323;font-size:14px;color:#666;margin-left:4px;">/50,000</span>
+        </div>
+        <div style="width:100px;height:6px;background:#001000;margin-top:4px;">
+          <div :style="{width:(cashInventory/50000*100)+'%',height:'100%',background:'#ffd700',transition:'width 0.3s'}"></div>
+        </div>
+      </div>
+    </div>
+    <div class="ammo-bar" style="pointer-events:all;">
+      <span class="ammo-label"><i class="fas fa-briefcase"></i> INVENTARIO [1-5] | CLICK = DISPARAR</span>
+      <div class="ammo-slots">
+        <div v-for="i in 5" :key="i"
+          class="ammo-slot"
+          :class="{active:(i-1)===activeWeapon, 'empty-slot':!weapons[i-1]}"
+          @click="activeWeapon=i-1"
+          :title="weapons[i-1] ? weapons[i-1].name + ' — ' + weapons[i-1].ammo + ' balas' : 'Vacio'">
+          <span class="slot-num">{{ i }}</span>
+          <template v-if="weapons[i-1]">
+            <i :class="weapons[i-1].icon" class="slot-icon"></i>
+            <span class="slot-ammo">{{ weapons[i-1].ammo }}</span>
+          </template>
+          <template v-else>
+            <i class="fas fa-minus slot-icon"></i>
+          </template>
+        </div>
+      </div>
+      <div class="weapon-info" v-if="weapons[activeWeapon]">
+        {{ weapons[activeWeapon].name }}
+        <span class="wi-ammo" v-if="weapons[activeWeapon].ammo > 0"> | {{ weapons[activeWeapon].ammo }} balas</span>
+        <span class="wi-empty" v-else> | SIN MUNICION!</span>
+      </div>
+      <div class="weapon-info" v-else style="color:#555;">
+        Slot {{ activeWeapon+1 }} — vacio. Compra armas en la tienda.
+      </div>
+    </div>
+    <div class="shoot-flash" v-if="shootFlash" :key="shootFlashKey"></div>
+    <div class="interact-hint" v-if="interactHint">{{ interactHint }}</div>
+    <div class="hidden-indicator" v-if="isHidden"><i class="fas fa-eye-slash"></i> OCULTO - SAT NO TE VE</div>
+    <div class="iva-warning" v-if="ivaZone"></div>
+    <div class="notif-stack">
+      <div class="notif" v-for="n in notifications" :key="n.id" :class="n.type">{{ n.msg }}</div>
+    </div>
+    <div class="float-number" v-for="fn in floatNumbers" :key="fn.id" :class="fn.cls" :style="{left:fn.x+'px',top:fn.y+'px'}">{{ fn.text }}</div>
+    <div class="minimap">
+      <span class="minimap-label">MAPA</span>
+      <canvas ref="minimapCanvas" width="130" height="130"></canvas>
+    </div>
+    <div class="hud-status">{{ statusText }}</div>
+    <div class="controls-hint">WASD=MOVER | ESPACIO=SALTAR | E=INTERACTUAR | CLICK=DISPARAR | 1-5=ARMA | ESC=PAUSA</div>
+    <div class="hud-crosshair"></div>
+  </div>
+  <div class="pause-overlay" v-if="state==='paused'">
+    <div class="pause-box">
+      <div class="pause-title"><i class="fas fa-pause"></i> PAUSADO</div>
+      <button class="menu-btn primary" @click="resumeGame"><i class="fas fa-play"></i> CONTINUAR</button>
+      <button class="menu-btn" @click="openSettings"><i class="fas fa-cog"></i> CONFIGURACION</button>
+      <button class="menu-btn danger" @click="quitToMenu"><i class="fas fa-door-open"></i> SALIR AL MENU</button>
+    </div>
+  </div>
+  <div class="shop-overlay" v-if="state==='shop'">
+    <div class="shop-box">
+      <div class="shop-title"><i class="fas fa-compact-disc"></i> PIRATERIA Y ASOCIADOS <i class="fas fa-compact-disc"></i></div>
+      <div class="shop-subtitle">"Lo que el SAT no sabe, no lo puede gravar... todavia"</div>
+      <div style="font-family:VT323;font-size:18px;color:#ff8888;text-align:center;margin-bottom:16px;">
+        ADVERTENCIA: Todos los precios incluyen IVA del 16% porque si no nos alcanza para los chescos
+      </div>
+      <div style="font-family:VT323;font-size:20px;color:#ffd700;text-align:center;margin-bottom:16px;">
+        <i class="fas fa-money-bill-wave"></i> Tu efectivo: ${{ formatMoney(cashInventory) }} MXN
+      </div>
+      <div class="shop-grid">
+        <div class="shop-item" v-for="item in shopItems" :key="item.id"
+          :class="{
+            owned: !item.isAmmo && ownedItems.includes(item.id),
+            'cant-afford': cashInventory < Math.round(item.price*1.16) && !(item.isAmmo ? false : ownedItems.includes(item.id))
+          }"
+          @click="buyItem(item)">
+          <div class="item-icon"><i :class="item.icon"></i></div>
+          <div class="item-name">{{ item.name }}</div>
+          <div class="item-desc">{{ item.desc }}</div>
+          <template v-if="item.isAmmo">
+            <div class="item-price">${{ formatMoney(item.price) }} <span>+IVA</span></div>
+            <div class="item-iva">Total: ${{ formatMoney(Math.round(item.price*1.16)) }}</div>
+            <div style="font-family:VT323;font-size:13px;color:#ffaa44;margin-top:2px;">RECARGABLE - COMPRA MULTIPLE</div>
+          </template>
+          <template v-else-if="!ownedItems.includes(item.id)">
+            <div class="item-price">${{ formatMoney(item.price) }} <span>+IVA</span></div>
+            <div class="item-iva">Total: ${{ formatMoney(Math.round(item.price*1.16)) }}</div>
+          </template>
+          <template v-else>
+            <div class="item-price" style="color:#00ff41;"><i class="fas fa-check"></i> COMPRADO</div>
+            <div v-if="item.isWeapon" style="font-family:VT323;font-size:13px;color:#ffaa44;">Compra municion arriba</div>
+          </template>
+        </div>
+      </div>
+      <button class="menu-btn" style="margin-top:20px;" @click="closeShop">
+        <i class="fas fa-sign-out-alt"></i> SALIR DE LA TIENDA
+      </button>
+    </div>
+  </div>
+  <div class="gameover-overlay" v-if="state==='gameover'">
+    <div class="gameover-title">AUDITADO</div>
+    <div class="gameover-reason">{{ gameOverReason }}</div>
+    <div class="stats-box">
+      <div class="stat-row">Tiempo sobrevivido: <span>{{ formatTime(survivalTime) }}</span></div>
+      <div class="stat-row">Puntuacion final: <span>{{ score }}</span></div>
+      <div class="stat-row">Efectivo acumulado: <span>${{ formatMoney(totalCashCollected) }}</span></div>
+      <div class="stat-row">Guardias SAT evadidos: <span>{{ satEvaded }}</span></div>
+      <div class="stat-row">Veces robado por asaltantes: <span>{{ timeRobbed }}</span></div>
+      <div class="stat-row">IVA pagado total: <span>-${{ formatMoney(ivaTotal) }}</span></div>
+      <div class="stat-row" v-if="survivalTime>bestTime">NUEVO RECORD <i class="fas fa-trophy" style="color:gold;"></i></div>
+    </div>
+    <button class="menu-btn primary" style="width:300px;margin-bottom:8px;" @click="startGame">
+      <i class="fas fa-redo"></i> INTENTAR DE NUEVO
+    </button>
+    <button class="menu-btn" style="width:300px;" @click="quitToMenu">
+      <i class="fas fa-home"></i> MENU PRINCIPAL
+    </button>
+  </div>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted, onUnmounted, nextTick } = Vue;
+createApp({
+  setup() {
+    const state = ref('loading');
+    const loadPct = ref(0);
+    const loadMsg = ref('Iniciando contribuyentes...');
+    const settings = reactive({
+      lang: 'es',
+      musicVol: 60,
+      sfxVol: 80,
+      brightness: 100,
+      sensitivity: 5,
+      controls: { forward:'W', back:'S', left:'A', right:'D', jump:'SPACE', interact:'E', attack:'F', hide:'Q', pause:'ESC' }
+    });
+    const controlLabels = {
+      forward:'MOVER ADELANTE', back:'MOVER ATRAS', left:'MOVER IZQUIERDA',
+      right:'MOVER DERECHA', jump:'SALTAR', interact:'INTERACTUAR',
+      attack:'ATACAR', hide:'ESCONDER', pause:'PAUSA'
+    };
+    const playerMoney = ref(20000);
+    const maxMoney = ref(20000);
+    const cashInventory = ref(0);
+    const survivalTime = ref(0);
+    const score = ref(0);
+    const bestTime = ref(0);
+    const isHidden = ref(false);
+    const ivaZone = ref(false);
+    const interactHint = ref('');
+    const statusText = ref('');
+    const notifications = ref([]);
+    const floatNumbers = ref([]);
+    const gameOverReason = ref('');
+    const weapons = ref([]);
+    const activeWeapon = ref(0);
+    const ownedItems = ref([]);
+    const shootFlash = ref(false);
+    const shootFlashKey = ref(0);
+    const totalCashCollected = ref(0);
+    const satEvaded = ref(0);
+    const timeRobbed = ref(0);
+    const ivaTotal = ref(0);
+    let notifId = 0;
+    let floatId = 0;
+    const shopItems = [
+      // --- ARMAS ---
+      { id:'pistola',     name:'PISTOLA DE AGUA',    icon:'fas fa-tint',         price:5000,  isWeapon:true,  damage:1, ammo:10, desc:'Semi-auto. 10 balas. Un disparo aturde al SAT.',  weaponKey:'pistola'    },
+      { id:'escopeta',    name:'ESCOPETA PIRATA',     icon:'fas fa-crosshairs',   price:9000,  isWeapon:true,  damage:3, ammo:6,  desc:'Dispara 3 proyectiles. Muy efectiva de cerca.',   weaponKey:'escopeta'   },
+      { id:'metralleta',  name:'TEC-9 PIRATA',        icon:'fas fa-burn',         price:14000, isWeapon:true,  damage:1, ammo:30, desc:'Rafaga de 3 balas por click. Alta cadencia.',     weaponKey:'metralleta' },
+      { id:'cohetes',     name:'LANZA-RFC',           icon:'fas fa-rocket',       price:20000, isWeapon:true,  damage:9, ammo:3,  desc:'Elimina agentes SAT al instante. 3 cohetes.',     weaponKey:'cohetes'    },
+      // --- MUNICION (compra multiple) ---
+      { id:'ammo_pistola',    name:'BALAS PISTOLA x15',  icon:'fas fa-circle',       price:1200,  isAmmo:true, ammoQty:15, weaponKey:'pistola',    desc:'15 balas calibre agua. Sin RFC disponible.'     },
+      { id:'ammo_escopeta',   name:'CARTUCHOS x6',        icon:'fas fa-circle',       price:1800,  isAmmo:true, ammoQty:6,  weaponKey:'escopeta',   desc:'6 cartuchos de pepinillo pirata.'               },
+      { id:'ammo_metralleta', name:'CARGADOR TEC-9 x30',  icon:'fas fa-circle',       price:2500,  isAmmo:true, ammoQty:30, weaponKey:'metralleta', desc:'30 balas. Sin factura, sin IVA (casi).'         },
+      { id:'ammo_cohetes',    name:'COHETE EXTRA x1',     icon:'fas fa-circle',       price:6000,  isAmmo:true, ammoQty:1,  weaponKey:'cohetes',    desc:'Un cohete RFC adicional. Escaso.'               },
+      // --- ITEMS ---
+      { id:'cuentas',  name:'CONTADOR CORRUPTO',  icon:'fas fa-calculator', price:12000, desc:'Impuestos cobrados -30%. Amigo del PRI.' },
+      { id:'casco',    name:'CASCO DE OBRERO',    icon:'fas fa-hard-hat',   price:3000,  desc:'Reduce dano de asaltantes 50%. Estilo CDMX.' },
+      { id:'bici',     name:'BICICLETA CLETA',    icon:'fas fa-bicycle',    price:6000,  desc:'Velocidad +40%. El SAT no tiene ECOBICI.' },
+      { id:'celular',  name:'CELULAR ESPEJO',     icon:'fas fa-mobile-alt', price:4000,  desc:'Radar SAT activo en el mapa.' },
+      { id:'escudo',   name:'ESCUDO FISCAL',      icon:'fas fa-shield-alt', price:15000, desc:'Absorbe un golpe del SAT. Uso unico.' },
+    ];
+    const minimapCanvas = ref(null);
+    const formatMoney = (n) => Math.max(0,Math.round(n)).toLocaleString('es-MX');
+    const formatTime = (s) => {
+      const m = Math.floor(s/60), sec = Math.floor(s%60);
+      return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    };
+    const addNotif = (msg, type='info', duration=3000) => {
+      const id = notifId++;
+      notifications.value.push({id, msg, type});
+      setTimeout(()=>{ notifications.value = notifications.value.filter(n=>n.id!==id); }, duration);
+    };
+    const addFloat = (text, x, y, cls='negative') => {
+      const id = floatId++;
+      floatNumbers.value.push({id, text, x, y, cls});
+      setTimeout(()=>{ floatNumbers.value = floatNumbers.value.filter(f=>f.id!==id); }, 1600);
+    };
+    const openSettings = () => { state.value = 'settings'; };
+    const closeSettings = () => { state.value = prevState.value || 'menu'; };
+    let prevState = ref('menu');
+    const saveSettings = () => { closeSettings(); };
+    const rebindKey = (k) => {/* simplified */};
+    let audioCtx = null;
+    const initAudio = () => {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    };
+    const playBeep = (freq=440, dur=0.1, type='square', vol=0.15) => {
+      if(!audioCtx || settings.sfxVol===0) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = type; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(vol*(settings.sfxVol/100), audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur);
+        osc.start(); osc.stop(audioCtx.currentTime+dur);
+      } catch(e){}
+    };
+    const playHit = () => { playBeep(150, 0.2, 'sawtooth', 0.2); };
+    const playPickup = () => { playBeep(880, 0.08, 'sine', 0.1); setTimeout(()=>playBeep(1100,0.08,'sine',0.1),80); };
+    const playAlert = () => { playBeep(300, 0.15, 'square', 0.2); setTimeout(()=>playBeep(200,0.2,'square',0.2),150); };
+    const playVictory = () => { [440,550,660,880].forEach((f,i)=>setTimeout(()=>playBeep(f,0.2,'sine',0.15),i*100)); };
+    let scene, camera, renderer, clock;
+    let playerObj, playerVel = {x:0,y:0,z:0};
+    let isOnGround = false;
+    let enemies = [], cashPickups = [], moneyLaunders = [], hideSpots = [], asaltantes = [];
+    let shopZone = null, shopZonePos = null;
+    let gameLoop = null, gameTimer = null;
+    let yaw = 0, pitch = 0;
+    let keys = {};
+    let gameRunning = false;
+    let ivaTimer = 0;
+    let nearObject = null;
+    const WORLD = 60;
+
+    const getColor = (hex) => new THREE.Color(hex);
+
+    const makePixelTexture = (colors, size=8) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      for(let y=0;y<size;y++) for(let x=0;x<size;x++) {
+        const i = (y*size+x)%(colors.length);
+        ctx.fillStyle = colors[Math.floor(Math.random()*colors.length)];
+        ctx.fillRect(x,y,1,1);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      return tex;
+    };
+
+    const makeDetailedTexture = (type) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      
+      if(type==='ground') {
+        // Asphalt/road texture
+        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0,0,64,64);
+        for(let i=0;i<80;i++) {
+          ctx.fillStyle = `rgba(${50+Math.random()*30},${50+Math.random()*30},${50+Math.random()*30},0.6)`;
+          ctx.fillRect(Math.random()*64,Math.random()*64,2+Math.random()*4,1+Math.random()*2);
+        }
+        // Cracks
+        ctx.strokeStyle = '#222'; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(0,20); ctx.lineTo(30,35); ctx.lineTo(64,20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10,60); ctx.lineTo(40,45); ctx.lineTo(64,55); ctx.stroke();
+      } else if(type==='wall') {
+        // Brick
+        ctx.fillStyle = '#c0713a'; ctx.fillRect(0,0,64,64);
+        for(let row=0;row<8;row++) {
+          for(let col=0;col<4;col++) {
+            const offset = (row%2)*8;
+            ctx.strokeStyle='#803020'; ctx.lineWidth=2;
+            ctx.strokeRect(col*16+offset-16, row*8, 16, 8);
+            ctx.fillStyle=`rgba(${150+Math.random()*40},${80+Math.random()*30},${40+Math.random()*20},0.3)`;
+            ctx.fillRect(col*16+offset-16+2,row*8+2,12,4);
+          }
+        }
+      } else if(type==='grass') {
+        ctx.fillStyle='#2d5a1e'; ctx.fillRect(0,0,64,64);
+        for(let i=0;i<200;i++) {
+          const x=Math.random()*64, y=Math.random()*64;
+          ctx.fillStyle=`hsl(${100+Math.random()*40},${50+Math.random()*30}%,${25+Math.random()*20}%)`;
+          ctx.fillRect(x,y,1,2+Math.random()*3);
+        }
+      } else if(type==='roof') {
+        ctx.fillStyle='#8b5e3c'; ctx.fillRect(0,0,64,64);
+        for(let row=0;row<8;row++) {
+          ctx.fillStyle = row%2===0?'#6b4424':'#7a5030';
+          ctx.fillRect(0,row*8,64,4);
+        }
+      } else if(type==='pri') {
+        // Green with PRI colors
+        ctx.fillStyle='#1a3a1a'; ctx.fillRect(0,0,64,64);
+        ctx.fillStyle='#cc0000'; ctx.fillRect(0,0,20,64);
+        ctx.fillStyle='#ffffff'; ctx.fillRect(20,0,24,64);
+        ctx.fillStyle='#006600'; ctx.fillRect(44,0,20,64);
+        ctx.fillStyle='#ffcc00'; ctx.beginPath(); ctx.arc(32,32,10,0,Math.PI*2); ctx.fill();
+      } else if(type==='money') {
+        ctx.fillStyle='#2a8a3a'; ctx.fillRect(0,0,64,64);
+        ctx.strokeStyle='#1a6a2a'; ctx.lineWidth=2;
+        for(let i=0;i<4;i++) { ctx.strokeRect(i*8,0,64,64); ctx.strokeRect(0,i*8,64,64); }
+        ctx.fillStyle='#aaffaa'; ctx.font='28px serif'; ctx.textAlign='center'; ctx.fillText('$',32,40);
+      }
+      
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3,3);
+      return tex;
+    };
+
+    const makeLabel = (text, bgColor='#cc0000', textColor='#ffffff', width=128, height=32) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = bgColor; ctx.fillRect(0,0,width,height);
+      ctx.strokeStyle='#ffffff44'; ctx.lineWidth=2; ctx.strokeRect(1,1,width-2,height-2);
+      ctx.fillStyle = textColor;
+      ctx.font = `bold ${Math.min(14, Math.floor(height*0.5))}px monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(text, width/2, height/2);
+      return new THREE.CanvasTexture(canvas);
+    };
+
+    const createBuilding = (x, z, w, d, h, wallTex, roofTex) => {
+      const group = new THREE.Group();
+      const wallMat = new THREE.MeshLambertMaterial({map: wallTex});
+      const roofMat = new THREE.MeshLambertMaterial({map: roofTex});
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wallMat);
+      body.position.y = h/2; body.castShadow = true; body.receiveShadow = true;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(w+0.4,0.4,d+0.4), roofMat);
+      roof.position.y = h+0.2;
+      group.add(body, roof);
+      group.position.set(x,0,z);
+      group.userData.isBuilding = true;
+      scene.add(group);
+      return group;
+    };
+
+    const createSATAgent = (x, z) => {
+      const group = new THREE.Group();
+      // Body - suit
+      const suitTex = makeDetailedTexture('wall'); // reuse
+      const bodyMat = new THREE.MeshLambertMaterial({color:0x1a1a2e});
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.9,0.3), bodyMat);
+      body.position.y = 0.75; body.castShadow = true;
+      // Head
+      const headMat = new THREE.MeshLambertMaterial({color:0xffcc99});
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.4), headMat);
+      head.position.y = 1.45; head.castShadow = true;
+      // Sunglasses
+      const glassMat = new THREE.MeshLambertMaterial({color:0x000000});
+      const glasses = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.1,0.05), glassMat);
+      glasses.position.set(0,1.5,0.21);
+      // Tie
+      const tieMat = new THREE.MeshLambertMaterial({color:0xcc0000});
+      const tie = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.5,0.05), tieMat);
+      tie.position.set(0,0.9,0.16);
+      // Arms
+      const armMat = new THREE.MeshLambertMaterial({color:0x1a1a2e});
+      const lArm = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.7,0.2), armMat);
+      lArm.position.set(-0.42,0.75,0); lArm.castShadow=true;
+      const rArm = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.7,0.2), armMat);
+      rArm.position.set(0.42,0.75,0); rArm.castShadow=true;
+      // Legs
+      const legMat = new THREE.MeshLambertMaterial({color:0x0d0d1a});
+      const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.7,0.25), legMat);
+      lLeg.position.set(-0.17,0.25,0); lLeg.castShadow=true;
+      const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.7,0.25), legMat);
+      rLeg.position.set(0.17,0.25,0); rLeg.castShadow=true;
+      // Briefcase
+      const caseMat = new THREE.MeshLambertMaterial({color:0x4a2800});
+      const briefcase = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.2,0.1), caseMat);
+      briefcase.position.set(0.55,0.5,0);
+      // SAT Badge label
+      const badgeTex = makeLabel('SAT','#cc0000','#fff',64,16);
+      const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.35,0.08), new THREE.MeshLambertMaterial({map:badgeTex, transparent:true}));
+      badge.position.set(0,1.1,0.16);
+
+      group.add(body, head, glasses, tie, lArm, rArm, lLeg, rLeg, briefcase, badge);
+      group.position.set(x,0,z);
+      group.userData = { 
+        type:'sat', health:3, speed:0.03, alertLevel:0, 
+        state:'patrol', target:null, homeX:x, homeZ:z,
+        walkTime:0, walkDir: new THREE.Vector3(Math.random()-0.5,0,Math.random()-0.5).normalize(),
+        stunTime:0, slowed:false
+      };
+      scene.add(group);
+      enemies.push(group);
+      return group;
+    };
+
+    const createAsaltante = (x, z) => {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.MeshLambertMaterial({color:0x333333});
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.55,0.85,0.28), bodyMat);
+      body.position.y = 0.72;
+      const headMat = new THREE.MeshLambertMaterial({color:0x886644});
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.38,0.38), headMat);
+      head.position.y = 1.38;
+      // Mask
+      const maskMat = new THREE.MeshLambertMaterial({color:0x111111});
+      const mask = new THREE.Mesh(new THREE.BoxGeometry(0.36,0.2,0.05), maskMat);
+      mask.position.set(0,1.38,0.2);
+      // Knife hand
+      const knifeMat = new THREE.MeshLambertMaterial({color:0xaaaaaa});
+      const knife = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.25,0.04), knifeMat);
+      knife.position.set(0.5,0.8,0.1); knife.rotation.z = 0.3;
+      const knifeLabel = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.08,0.01), new THREE.MeshLambertMaterial({map:makeLabel('CUCHILLO','#333','#aaa',64,16)}));
+      knifeLabel.position.set(0.5,1.0,0.12);
+      group.add(body,head,mask,knife,knifeLabel);
+      group.position.set(x,0,z);
+      group.userData = { type:'asaltante', health:2, speed:0.025, state:'wander', hasKnife:true, stunTime:0 };
+      scene.add(group);
+      asaltantes.push(group);
+      return group;
+    };
+
+    const createCashPickup = (x, z, amount) => {
+      const group = new THREE.Group();
+      const moneyTex = makeDetailedTexture('money');
+      const mat = new THREE.MeshLambertMaterial({map:moneyTex});
+      const bill = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.05,0.2), mat);
+      bill.position.y = 0.05;
+      const label = makeLabel(`$${amount.toLocaleString()}`, '#2a8a3a','#ffffff',64,16);
+      const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.15), new THREE.MeshLambertMaterial({map:label, transparent:true, side:THREE.DoubleSide}));
+      labelMesh.position.y = 0.3; labelMesh.rotation.x = -0.4;
+      group.add(bill, labelMesh);
+      group.position.set(x,0,z);
+      group.userData = { type:'cash', amount };
+      scene.add(group);
+      cashPickups.push(group);
+      return group;
+    };
+
+    const createMoneyLaunder = (x, z) => {
+      const group = new THREE.Group();
+      const wallTex = makeDetailedTexture('wall');
+      const wallMat = new THREE.MeshLambertMaterial({map:wallTex, color:0xaaffaa});
+      const bld = new THREE.Mesh(new THREE.BoxGeometry(5,3,4), wallMat);
+      bld.position.y = 1.5; bld.castShadow=true; bld.receiveShadow=true;
+      // Sign
+      const signTex = makeLabel('LAVADO DE DINERO', '#006600', '#ffffff', 256, 48);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4,0.8), new THREE.MeshLambertMaterial({map:signTex, transparent:true, side:THREE.DoubleSide}));
+      sign.position.set(0,3.3,2.1);
+      // Aura/glow effect
+      const aura = new THREE.Mesh(new THREE.CircleGeometry(3,16), new THREE.MeshLambertMaterial({color:0x00ff00, transparent:true, opacity:0.08, side:THREE.DoubleSide}));
+      aura.rotation.x = -Math.PI/2; aura.position.y = 0.02;
+      group.add(bld, sign, aura);
+      group.position.set(x,0,z);
+      group.userData = { type:'launder', ivaTimer:0 };
+      scene.add(group);
+      moneyLaunders.push(group);
+      return group;
+    };
+
+    const createHideSpot = (x, z, label, icon) => {
+      const group = new THREE.Group();
+      // PRI themed building
+      const priTex = makeDetailedTexture('pri');
+      const mat = new THREE.MeshLambertMaterial({map:priTex});
+      const bld = new THREE.Mesh(new THREE.BoxGeometry(4,3.5,3.5), mat);
+      bld.position.y = 1.75; bld.castShadow=true; bld.receiveShadow=true;
+      const signTex = makeLabel(label,'#cc0000','#ffffff',256,40);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3,0.6), new THREE.MeshLambertMaterial({map:signTex,transparent:true,side:THREE.DoubleSide}));
+      sign.position.set(0,3.8,1.8);
+      // Flag
+      const flagTex = makeDetailedTexture('pri');
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.5), new THREE.MeshLambertMaterial({map:flagTex,side:THREE.DoubleSide}));
+      flag.position.set(2.2,4.5,0);
+      // Flagpole
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,4,6), new THREE.MeshLambertMaterial({color:0xaaaaaa}));
+      pole.position.set(2.2,2,0);
+      group.add(bld, sign, flag, pole);
+      group.position.set(x,0,z);
+      group.userData = { type:'hide', label };
+      scene.add(group);
+      hideSpots.push(group);
+      return group;
+    };
+
+    const createShop = (x, z) => {
+      const group = new THREE.Group();
+      const mat = new THREE.MeshLambertMaterial({color:0x220033});
+      const bld = new THREE.Mesh(new THREE.BoxGeometry(5,3,4), mat);
+      bld.position.y = 1.5; bld.castShadow=true; bld.receiveShadow=true;
+      const signTex = makeLabel('CD\'s PIRATAS Y MAS', '#330066','#ff88ff',256,40);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.5,0.7), new THREE.MeshLambertMaterial({map:signTex,transparent:true,side:THREE.DoubleSide}));
+      sign.position.set(0,3.5,2.1);
+      // CDs decorativo
+      for(let i=0;i<5;i++) {
+        const cd = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.03,16), new THREE.MeshLambertMaterial({color:0xccccff, metalness:1}));
+        cd.position.set(-2+i,3,2.1); cd.rotation.x = Math.PI/2;
+        group.add(cd);
+      }
+      // Aura
+      const aura = new THREE.Mesh(new THREE.CircleGeometry(3.5,16), new THREE.MeshLambertMaterial({color:0xff00ff,transparent:true,opacity:0.07,side:THREE.DoubleSide}));
+      aura.rotation.x=-Math.PI/2; aura.position.y=0.02;
+      group.add(bld, sign, aura);
+      group.position.set(x,0,z);
+      group.userData = { type:'shop' };
+      scene.add(group);
+      shopZone = group;
+      shopZonePos = new THREE.Vector3(x,0,z);
+      return group;
+    };
+
+    const initScene = () => {
+      const canvas = document.getElementById('gameCanvas');
+      renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87CEEB);
+      scene.fog = new THREE.Fog(0x87CEEB, 30, 80);
+
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
+      camera.position.set(0,1.7,0);
+
+      clock = new THREE.Clock();
+
+      // Lighting
+      const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambient);
+      const sun = new THREE.DirectionalLight(0xfff4cc, 1.2);
+      sun.position.set(20,30,20);
+      sun.castShadow = true;
+      sun.shadow.mapSize.width = 2048;
+      sun.shadow.mapSize.height = 2048;
+      sun.shadow.camera.near = 0.1;
+      sun.shadow.camera.far = 100;
+      sun.shadow.camera.left = -50;
+      sun.shadow.camera.right = 50;
+      sun.shadow.camera.top = 50;
+      sun.shadow.camera.bottom = -50;
+      scene.add(sun);
+
+      // Hemisphere light for sky
+      const hemi = new THREE.HemisphereLight(0x87CEEB, 0x3a3a3a, 0.4);
+      scene.add(hemi);
+
+      // GROUND
+      const groundTex = makeDetailedTexture('ground');
+      groundTex.repeat.set(20,20);
+      const groundMat = new THREE.MeshLambertMaterial({map:groundTex});
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD*2, WORLD*2), groundMat);
+      ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Grass patches
+      const grassTex = makeDetailedTexture('grass');
+      grassTex.repeat.set(4,4);
+      for(let i=0;i<12;i++) {
+        const gx = (Math.random()-0.5)*WORLD*1.5, gz = (Math.random()-0.5)*WORLD*1.5;
+        const gPatch = new THREE.Mesh(new THREE.PlaneGeometry(6+Math.random()*8, 5+Math.random()*6), new THREE.MeshLambertMaterial({map:grassTex}));
+        gPatch.rotation.x = -Math.PI/2; gPatch.position.set(gx,0.01,gz);
+        scene.add(gPatch);
+      }
+
+      // BUILDINGS (decorative)
+      const wallTex = makeDetailedTexture('wall');
+      const roofTex = makeDetailedTexture('roof');
+      const buildingPositions = [
+        [-20,-20,6,4,5], [-20,15,4,4,4], [15,-20,5,4,6],
+        [15,20,4,5,4], [-5,25,6,3,3], [25,5,5,4,5],
+        [-25,5,4,4,6], [8,-25,5,3,4], [-10,-15,3,3,5]
+      ];
+      buildingPositions.forEach(([x,z,w,d,h])=> createBuilding(x,z,w,d,h,wallTex,roofTex));
+
+      // Fences / walls
+      const fenceMat = new THREE.MeshLambertMaterial({color:0x888888});
+      for(let i=-WORLD;i<WORLD;i+=4) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.2,2,0.2), fenceMat);
+        post.position.set(i,1,WORLD); post.castShadow=true; scene.add(post);
+        const post2 = post.clone(); post2.position.set(i,1,-WORLD); scene.add(post2);
+        const post3 = post.clone(); post3.position.set(WORLD,1,i); scene.add(post3);
+        const post4 = post.clone(); post4.position.set(-WORLD,1,i); scene.add(post4);
+      }
+
+      // Street lamps
+      const lampMat = new THREE.MeshLambertMaterial({color:0x888888});
+      const lampPositions = [[-10,0],[10,0],[0,10],[0,-10],[-15,15],[15,-15],[-15,-15],[15,15]];
+      lampPositions.forEach(([x,z])=>{
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,4,6), lampMat);
+        pole.position.set(x,2,z); pole.castShadow=true; scene.add(pole);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.2,0.2), lampMat);
+        head.position.set(x+0.25,4,z); scene.add(head);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8), new THREE.MeshLambertMaterial({color:0xffffcc,emissive:0xffee88,emissiveIntensity:1}));
+        bulb.position.set(x+0.25,3.9,z); scene.add(bulb);
+        const light = new THREE.PointLight(0xffffcc, 0.5, 8);
+        light.position.set(x+0.25,4,z); scene.add(light);
+      });
+
+      // KEY LOCATIONS
+      createMoneyLaunder(-18, -5);
+      createHideSpot(15, -12, 'SEDE PRI LOCAL', 'PRI');
+      createHideSpot(-12, 18, 'SINDICATO NACIONAL', 'SND');
+      createShop(18, 15);
+
+      // PLAYER OBJECT (camera holder)
+      playerObj = new THREE.Object3D();
+      playerObj.position.set(0, 0, 0);
+      scene.add(playerObj);
+      playerObj.add(camera);
+      camera.position.set(0, 1.7, 0);
+
+      // Initial enemies
+      for(let i=0;i<4;i++) {
+        const angle = (i/4)*Math.PI*2;
+        createSATAgent(Math.cos(angle)*15, Math.sin(angle)*15);
+      }
+
+      // Initial cash pickups
+      for(let i=0;i<15;i++) {
+        const amounts = [100,200,500,500,1000,1000,2000,5000];
+        const amt = amounts[Math.floor(Math.random()*amounts.length)];
+        createCashPickup((Math.random()-0.5)*WORLD*1.4, (Math.random()-0.5)*WORLD*1.4, amt);
+      }
+
+      // Initial asaltante
+      createAsaltante(20, -20);
+    };
+
+    let camYaw = 0, camPitch = 0;
+    let pointerLocked = false;
+
+    const onMouseMove = (e) => {
+      if(!pointerLocked || !gameRunning) return;
+      const sens = settings.sensitivity * 0.001;
+      camYaw -= e.movementX * sens;
+      camPitch -= e.movementY * sens;
+      camPitch = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, camPitch));
+    };
+
+    const onKeyDown = (e) => {
+      keys[e.code] = true;
+      if(e.code==='Escape') {
+        if(state.value==='playing') { state.value='paused'; gameRunning=false; }
+        else if(state.value==='paused') { resumeGame(); }
+        else if(state.value==='shop') { closeShop(); }
+      }
+      if(e.code==='KeyE' && state.value==='playing') handleInteract();
+      if(e.code==='KeyF' && state.value==='playing') handleAttack();
+      // Teclas 1-5 para seleccionar slot de arma
+      if(state.value==='playing') {
+        if(e.code==='Digit1') activeWeapon.value = 0;
+        if(e.code==='Digit2') activeWeapon.value = 1;
+        if(e.code==='Digit3') activeWeapon.value = 2;
+        if(e.code==='Digit4') activeWeapon.value = 3;
+        if(e.code==='Digit5') activeWeapon.value = 4;
+      }
+    };
+    const onKeyUp = (e) => { keys[e.code] = false; };
+
+    const handleInteract = () => {
+      if(!nearObject) return;
+      const ud = nearObject.userData;
+      if(ud.type==='cash') {
+        const room = 50000 - cashInventory.value;
+        const take = Math.min(ud.amount, room);
+        if(take <= 0) { addNotif('INVENTARIO LLENO - Max $50,000', 'warning'); return; }
+        cashInventory.value += take;
+        totalCashCollected.value += take;
+        playPickup();
+        addFloat(`+$${take.toLocaleString()}`, window.innerWidth/2+Math.random()*100-50, window.innerHeight/2, 'positive');
+        scene.remove(nearObject);
+        cashPickups = cashPickups.filter(c=>c!==nearObject);
+        nearObject = null;
+        addNotif(`Recogiste $${take.toLocaleString()} en efectivo!`, 'success', 2000);
+        spawnCashPickup();
+      } else if(ud.type==='launder') {
+        if(cashInventory.value<=0) { addNotif('No tienes efectivo para lavar', 'warning'); return; }
+        const gain = Math.min(cashInventory.value, maxMoney.value - playerMoney.value);
+        if(gain<=0) { addNotif('Tu tarjeta ya esta al maximo', 'info'); return; }
+        const take = Math.min(cashInventory.value, gain);
+        playerMoney.value += take;
+        cashInventory.value -= take;
+        playVictory();
+        addFloat(`+$${take.toLocaleString()}`, window.innerWidth/2, window.innerHeight/2-50, 'positive');
+        addNotif(`Lavaste $${take.toLocaleString()}! Tarjeta recargada.`, 'success');
+        score.value += Math.floor(take/100);
+      } else if(ud.type==='hide') {
+        isHidden.value = !isHidden.value;
+        if(isHidden.value) {
+          addNotif(`OCULTO en: ${ud.label}. El SAT no puede entrar por inmunidad politica.`, 'info');
+          playBeep(440, 0.15, 'sine');
+        } else {
+          addNotif('Saliste del escondite. CUIDADO!', 'warning');
+          playAlert();
+        }
+      } else if(ud.type==='shop') {
+        openShop();
+      }
+    };
+
+    const handleAttack = () => {
+      // F sigue funcionando como melee de emergencia (sin ammo)
+      if(weapons.value.length===0) { addNotif('Sin armas. Compra en la tienda de CDs.', 'info', 1500); return; }
+      const w = weapons.value[activeWeapon.value];
+      if(!w) { addNotif('Slot vacio. Usa 1-5 para seleccionar arma.', 'info', 1500); return; }
+      const playerPos = playerObj.position;
+      let hit = false;
+      [...enemies, ...asaltantes].forEach(e => {
+        if(playerPos.distanceTo(e.position) < 2.5) {
+          e.userData.health -= 1;
+          hit = true;
+          playHit();
+          addFloat(`-1 HP MELEE`, window.innerWidth/2+Math.random()*60-30, window.innerHeight/2, 'negative');
+          if(e.userData.health<=0) {
+            if(e.userData.type==='sat') {
+              satEvaded.value++;
+              e.userData.stunTime = 8; e.userData.health = 3;
+              addNotif('SAT noqueado con ataque cuerpo a cuerpo!', 'success');
+            } else {
+              scene.remove(e); asaltantes = asaltantes.filter(a=>a!==e);
+              addNotif('Asaltante eliminado a golpes.', 'funny');
+            }
+          }
+        }
+      });
+      if(!hit) addNotif('Nadie cerca. Usa CLICK para disparar a distancia.', 'info', 1500);
+    };
+
+    // --- DISPARO CON RAYCASTING (CLICK DEL MOUSE) ---
+    const handleShoot = () => {
+      if(!gameRunning || !pointerLocked) return;
+      if(state.value !== 'playing') return;
+
+      // Obtener arma del slot activo
+      const w = weapons.value[activeWeapon.value];
+      if(!w) {
+        addNotif('Slot ' + (activeWeapon.value+1) + ' vacio. Compra armas en la tienda.', 'info', 1800);
+        return;
+      }
+      if(w.ammo <= 0) {
+        addNotif(w.name + ' sin municion! Compra mas en CDs Piratas.', 'warning', 2500);
+        playBeep(80, 0.15, 'square', 0.2); // clic de gatillo vacio
+        return;
+      }
+
+      // Sonido de disparo segun arma
+      if(w.weaponKey==='pistola')    { playBeep(600,0.08,'sawtooth',0.25); setTimeout(()=>playBeep(200,0.05,'square',0.1),60); }
+      else if(w.weaponKey==='escopeta')   { playBeep(300,0.12,'sawtooth',0.35); playBeep(500,0.1,'sawtooth',0.25); setTimeout(()=>playBeep(150,0.1,'square',0.2),80); }
+      else if(w.weaponKey==='metralleta') { for(let b=0;b<3;b++) setTimeout(()=>{ playBeep(700+Math.random()*200,0.06,'sawtooth',0.2); },b*40); }
+      else if(w.weaponKey==='cohetes')    { playBeep(200,0.2,'sawtooth',0.4); setTimeout(()=>playBeep(100,0.3,'square',0.3),100); }
+
+      // Flash de pantalla
+      shootFlash.value = false;
+      setTimeout(()=>{ shootFlash.value=true; shootFlashKey.value++; setTimeout(()=>{ shootFlash.value=false; },80); },0);
+
+      // Consumir municion (metralleta consume 3 de una)
+      const bulletsUsed = w.weaponKey==='metralleta' ? Math.min(3, w.ammo) : 1;
+      w.ammo -= bulletsUsed;
+
+      // --- RAYCASTING ---
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      raycaster.far = 50;
+
+      // Recolectar todos los meshes de enemigos con referencia al grupo padre
+      const meshToGroup = new Map();
+      const allMeshes = [];
+      [...enemies, ...asaltantes].forEach(grp => {
+        grp.traverse(child => {
+          if(child.isMesh) {
+            meshToGroup.set(child, grp);
+            allMeshes.push(child);
+          }
+        });
+      });
+
+      const intersects = raycaster.intersectObjects(allMeshes, false);
+
+      // Numero de proyectiles segun arma
+      const projectiles = w.weaponKey==='escopeta' ? 3 : 1;
+      const hitsProcessed = new Set();
+
+      for(let p=0; p<projectiles; p++) {
+        // Para escopeta, agregar dispersion
+        let rc = raycaster;
+        if(w.weaponKey==='escopeta' && p>0) {
+          rc = new THREE.Raycaster();
+          const spread = new THREE.Vector2(
+            (Math.random()-0.5)*0.08,
+            (Math.random()-0.5)*0.08
+          );
+          rc.setFromCamera(spread, camera);
+          rc.far = 20;
+          const spreadHits = rc.intersectObjects(allMeshes, false);
+          if(spreadHits.length>0) intersects.push(...spreadHits);
+        }
+      }
+
+      let hitSomething = false;
+
+      for(const hit of intersects) {
+        const grp = meshToGroup.get(hit.object);
+        if(!grp || hitsProcessed.has(grp)) continue;
+        hitsProcessed.add(grp);
+
+        const ud = grp.userData;
+        ud.health -= w.damage;
+        hitSomething = true;
+
+        // Efecto visual de impacto
+        const hx = window.innerWidth/2 + (Math.random()-0.5)*80;
+        const hy = window.innerHeight/2 + (Math.random()-0.5)*50;
+        addFloat(`-${w.damage} HP`, hx, hy, 'negative');
+        playHit();
+
+        // Spawn chispa en punto de impacto (opcional visual)
+        const spark = new THREE.Mesh(
+          new THREE.SphereGeometry(0.12,4,4),
+          new THREE.MeshBasicMaterial({color: ud.type==='sat' ? 0xff4400 : 0xff8800})
+        );
+        spark.position.copy(hit.point);
+        scene.add(spark);
+        setTimeout(()=>scene.remove(spark), 120);
+
+        if(ud.health <= 0) {
+          if(ud.type==='sat') {
+            satEvaded.value++;
+            ud.stunTime = 10;
+            ud.health = 3;
+            ud.state = 'patrol';
+            addNotif('Agente SAT noqueado! ' + (w.weaponKey==='cohetes'?'Cabron fiscalizador eliminado del RFC.':'Se retira temporalmente.'), 'success', 2500);
+            if(w.weaponKey==='cohetes') playVictory();
+          } else if(ud.type==='asaltante') {
+            scene.remove(grp);
+            asaltantes = asaltantes.filter(a=>a!==grp);
+            addNotif('Asaltante eliminado. Su cuchillo queda sin deducir.', 'funny', 2500);
+          }
+        }
+
+        // Solo un hit por disparo (salvo escopeta que puede golpear dos)
+        if(w.weaponKey !== 'escopeta') break;
+        if(hitsProcessed.size >= 2) break;
+      }
+
+      if(!hitSomething) {
+        // Sonido de bala que no conecta
+        setTimeout(()=>playBeep(180,0.04,'sine',0.08), 80);
+      }
+
+      if(w.ammo <= 0) {
+        addNotif(w.name + ' sin municion! Slot ' + (activeWeapon.value+1) + ' vacio. Compra recarga.', 'warning', 3000);
+      }
+    };
+
+    const openShop = () => {
+      state.value = 'shop';
+      gameRunning = false;
+    };
+    const closeShop = () => {
+      state.value = 'playing';
+      gameRunning = true;
+      document.getElementById('gameCanvas').requestPointerLock();
+    };
+
+    const buyItem = (item) => {
+      const total = Math.round(item.price * 1.16);
+      if(cashInventory.value < total) {
+        addNotif('No tienes suficiente efectivo. Necesitas $' + total.toLocaleString('es-MX') + ' (IVA incluido)', 'danger', 3000);
+        return;
+      }
+
+      // --- MUNICION: compra multiple, no necesita tener el arma en mano, solo existir en algun slot ---
+      if(item.isAmmo) {
+        const targetWeapon = weapons.value.find(w => w.weaponKey === item.weaponKey);
+        if(!targetWeapon) {
+          addNotif('Primero compra el arma ' + item.weaponKey + ' para poder recargarla.', 'warning', 3000);
+          return;
+        }
+        cashInventory.value -= total;
+        ivaTotal.value += Math.round(total - item.price);
+        targetWeapon.ammo += item.ammoQty;
+        playPickup();
+        addNotif('+' + item.ammoQty + ' balas para ' + targetWeapon.name + '. IVA cobrado: $' + (Math.round(total-item.price)).toLocaleString('es-MX'), 'funny', 3500);
+        return;
+      }
+
+      // --- ARMA: una sola compra, va al primer slot libre ---
+      if(item.isWeapon) {
+        if(ownedItems.value.includes(item.id)) {
+          addNotif('Ya tienes esa arma. Compra municion para recargarla.', 'warning');
+          return;
+        }
+        if(weapons.value.length >= 5) {
+          addNotif('Inventario lleno (5 armas max). Necesitas espacio.', 'warning');
+          return;
+        }
+        cashInventory.value -= total;
+        ivaTotal.value += Math.round(total - item.price);
+        ownedItems.value.push(item.id);
+        applyItem(item);
+        playPickup();
+        addNotif('Compraste: ' + item.name + '. IVA: $' + (Math.round(total-item.price)).toLocaleString('es-MX') + '. Slot ' + weapons.value.length, 'funny', 4000);
+        return;
+      }
+
+      // --- ITEM UNICO normal ---
+      if(ownedItems.value.includes(item.id)) { addNotif('Ya compraste esto', 'warning'); return; }
+      cashInventory.value -= total;
+      ivaTotal.value += Math.round(total - item.price);
+      ownedItems.value.push(item.id);
+      applyItem(item);
+      playPickup();
+      addNotif('Compraste: ' + item.name + '. El SAT cobro IVA de $' + (Math.round(total-item.price)).toLocaleString('es-MX'), 'funny', 4000);
+    };
+
+    const applyItem = (item) => {
+      if(item.isWeapon) {
+        weapons.value.push({
+          name: item.name,
+          icon: item.icon,
+          damage: item.damage,
+          ammo: item.ammo,
+          weaponKey: item.weaponKey
+        });
+        // Auto-seleccionar el arma recien comprada
+        activeWeapon.value = weapons.value.length - 1;
+        addNotif(item.name + ' equipada en slot ' + weapons.value.length + '. CLICK para disparar!', 'success', 3000);
+      }
+      if(item.id==='bici')    { playerSpeed.value *= 1.4; addNotif('Velocidad aumentada en 40%!', 'success', 2000); }
+      if(item.id==='escudo')  { shieldActive.value = true; addNotif('Escudo fiscal activado! Un golpe gratis.', 'success'); }
+      if(item.id==='cuentas') { taxReduction.value = 0.7; addNotif('Contador corrupto contratado. Impuestos -30%', 'success'); }
+      if(item.id==='casco')   { addNotif('Casco equipado. Resistencia a asaltantes +50%', 'success'); }
+    };
+
+    const playerSpeed = ref(0.08);
+    const shieldActive = ref(false);
+    const taxReduction = ref(1.0);
+
+    const spawnCashPickup = () => {
+      const amounts = [200,500,500,1000,2000,5000];
+      const amt = amounts[Math.floor(Math.random()*amounts.length)];
+      const angle = Math.random()*Math.PI*2;
+      const dist = 10+Math.random()*30;
+      createCashPickup(Math.cos(angle)*dist, Math.sin(angle)*dist, amt);
+    };
+
+    const spawnEnemy = () => {
+      const side = Math.floor(Math.random()*4);
+      let x, z;
+      if(side===0){x=(Math.random()-0.5)*WORLD*1.5;z=WORLD-5;}
+      else if(side===1){x=(Math.random()-0.5)*WORLD*1.5;z=-(WORLD-5);}
+      else if(side===2){x=WORLD-5;z=(Math.random()-0.5)*WORLD*1.5;}
+      else{x=-(WORLD-5);z=(Math.random()-0.5)*WORLD*1.5;}
+      createSATAgent(x,z);
+    };
+
+    const checkNearbyObjects = () => {
+      const pPos = playerObj.position;
+      nearObject = null;
+      let minDist = 3.5;
+      let hint = '';
+
+      cashPickups.forEach(c => {
+        const d = pPos.distanceTo(c.position);
+        if(d < minDist) { minDist=d; nearObject=c; hint=`[E] Recoger $${c.userData.amount.toLocaleString()}`; }
+      });
+      moneyLaunders.forEach(m => {
+        const d = pPos.distanceTo(m.position);
+        if(d < 5) { minDist=d; nearObject=m; hint=`[E] Lavar efectivo - ZONA SEGURA (IVA: $1,000/seg si te quedas)`; }
+      });
+      hideSpots.forEach(h => {
+        const d = pPos.distanceTo(h.position);
+        if(d < 4) { minDist=d; nearObject=h; hint=isHidden.value?`[E] SALIR del escondite`:`[E] ESCONDERSE en ${h.userData.label}`; }
+      });
+      if(shopZone && pPos.distanceTo(shopZonePos) < 5) {
+        nearObject=shopZone; hint=`[E] Entrar a CDs Piratas y Mas`; 
+      }
+
+      interactHint.value = hint;
+    };
+
+    const updateEnemyAI = (enemy, delta) => {
+      const ud = enemy.userData;
+      if(ud.stunTime > 0) { ud.stunTime -= delta; return; }
+      
+      const playerPos = playerObj.position;
+      const enemyPos = enemy.position;
+      const dist = enemyPos.distanceTo(playerPos);
+      const speed = ud.slowed ? ud.speed*0.4 : ud.speed * (1 + survivalTime.value/120*0.1);
+
+      ud.walkTime += delta*3;
+      const left = enemy.children[5]; // lLeg
+      const right = enemy.children[6]; // rLeg
+      if(left && right) {
+        left.rotation.x = Math.sin(ud.walkTime)*0.5;
+        right.rotation.x = -Math.sin(ud.walkTime)*0.5;
+        const la = enemy.children[3]; // lArm
+        const ra = enemy.children[4]; // rArm
+        if(la&&ra) { la.rotation.x=-Math.sin(ud.walkTime)*0.3; ra.rotation.x=Math.sin(ud.walkTime)*0.3; }
+      }
+
+      if(isHidden.value) { ud.state='patrol'; }
+      
+      if(dist < 18 && !isHidden.value) { ud.state='chase'; }
+      if(dist > 25) { ud.state='patrol'; }
+
+      if(ud.state==='chase') {
+        const dir = new THREE.Vector3(playerPos.x-enemyPos.x, 0, playerPos.z-enemyPos.z).normalize();
+        enemy.position.x += dir.x * speed;
+        enemy.position.z += dir.z * speed;
+        enemy.lookAt(playerPos.x, enemyPos.y, playerPos.z);
+        
+        if(dist < 1.5) {
+          const tax = Math.round((1000 + Math.random()*2000) * taxReduction.value);
+          if(shieldActive.value) {
+            shieldActive.value = false;
+            ownedItems.value = ownedItems.value.filter(i=>i!=='escudo');
+            addNotif('Escudo fiscal absorbio el impuesto! (uso agotado)', 'warning');
+            return;
+          }
+          playerMoney.value = Math.max(0, playerMoney.value - tax);
+          playHit();
+          addFloat(`-$${tax.toLocaleString()} IMPUESTOS`, window.innerWidth/2+Math.random()*60-30, window.innerHeight/2+Math.random()*40-20, 'negative');
+          const msgs = ['OMISION DE INGRESOS', 'RETENCION OMITIDA','FACTURA FALSA','COMPROBANTE INVALIDO','DECLARACION TARDÍA','ISR NO PAGADO','IVA OMITIDO'];
+          addNotif(`SAT: ${msgs[Math.floor(Math.random()*msgs.length)]}! -$${tax.toLocaleString()}`, 'danger');
+          const back = new THREE.Vector3(playerPos.x-enemyPos.x,0,playerPos.z-enemyPos.z).normalize();
+          playerObj.position.x += back.x*2;
+          playerObj.position.z += back.z*2;
+          if(playerMoney.value <= 0) triggerGameOver('El SAT te embargo completamente. No quedo nada en tu tarjeta de debito.');
+          satEvaded.value++; 
+        }
+      } else {
+        ud.walkTime += delta;
+        if(Math.random() < 0.005) { ud.walkDir = new THREE.Vector3(Math.random()-0.5,0,Math.random()-0.5).normalize(); }
+        enemy.position.x += ud.walkDir.x * speed * 0.5;
+        enemy.position.z += ud.walkDir.z * speed * 0.5;
+        enemy.position.x = Math.max(-WORLD+2, Math.min(WORLD-2, enemy.position.x));
+        enemy.position.z = Math.max(-WORLD+2, Math.min(WORLD-2, enemy.position.z));
+        enemy.lookAt(enemy.position.x+ud.walkDir.x, enemyPos.y, enemy.position.z+ud.walkDir.z);
+      }
+    };
+
+    const updateAsaltanteAI = (aslt, delta) => {
+      const ud = aslt.userData;
+      const pPos = playerObj.position;
+      const aPos = aslt.position;
+      const dist = aPos.distanceTo(pPos);
+
+      enemies.forEach(sat => {
+        if(sat.position.distanceTo(aPos) < 2 && ud.hasKnife) {
+          ud.hasKnife = false;
+          const knife = aslt.children.find(c=>c.geometry&&c.geometry.parameters&&c.geometry.parameters.radiusTop===undefined&&c.position.x>0.4);
+          if(knife) knife.visible=false;
+          addNotif('SAT: "No dedujo el impuesto de esa arma blanca" - Asaltante arrestado', 'funny', 5000);
+          playAlert();
+          setTimeout(()=>{ scene.remove(aslt); asaltantes=asaltantes.filter(a=>a!==aslt); }, 2000);
+        }
+      });
+      if(dist < 12) {
+        const dir = new THREE.Vector3(pPos.x-aPos.x,0,pPos.z-aPos.z).normalize();
+        aslt.position.x += dir.x * 0.02;
+        aslt.position.z += dir.z * 0.02;
+        aslt.lookAt(pPos.x,aPos.y,pPos.z);
+        if(dist < 1.5 && cashInventory.value > 0) {
+          const stolen = cashInventory.value;
+          cashInventory.value = 0;
+          timeRobbed.value++;
+          playHit();
+          addFloat(`ROBADO -$${stolen.toLocaleString()}`, window.innerWidth/2, window.innerHeight/2-20, 'robbery');
+          addNotif(`Asaltante te robo todo el efectivo! -$${stolen.toLocaleString()}`, 'danger', 5000);
+        }
+      } else {
+        if(Math.random()<0.008) aslt.userData.wanderDir = new THREE.Vector3(Math.random()-0.5,0,Math.random()-0.5).normalize();
+        const wd = aslt.userData.wanderDir || new THREE.Vector3(1,0,0);
+        aslt.position.x += wd.x*0.015;
+        aslt.position.z += wd.z*0.015;
+        aslt.position.x = Math.max(-WORLD+2, Math.min(WORLD-2, aslt.position.x));
+        aslt.position.z = Math.max(-WORLD+2, Math.min(WORLD-2, aslt.position.z));
+      }
+    };
+    const updateMinimap = () => {
+      const canvas = minimapCanvas.value;
+      if(!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = 130, H = 130, scale = W/(WORLD*2);
+      ctx.fillStyle = '#001a00'; ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle='#003300'; ctx.lineWidth=1;
+      for(let i=0;i<W;i+=13) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+      for(let i=0;i<H;i+=13) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke(); }
+      ctx.fillStyle='#226622';
+      scene.children.filter(c=>c.userData.isBuilding).forEach(b=>{
+        const mx = (b.position.x+WORLD)*scale, mz = (b.position.z+WORLD)*scale;
+        ctx.fillRect(mx-3,mz-3,6,6);
+      });
+      moneyLaunders.forEach(m=>{
+        const mx=(m.position.x+WORLD)*scale,mz=(m.position.z+WORLD)*scale;
+        ctx.fillStyle='#00ff00'; ctx.fillRect(mx-4,mz-4,8,8);
+      });
+      hideSpots.forEach(h=>{
+        const mx=(h.position.x+WORLD)*scale,mz=(h.position.z+WORLD)*scale;
+        ctx.fillStyle='#0000ff'; ctx.fillRect(mx-4,mz-4,8,8);
+      });
+      if(shopZonePos) {
+        const mx=(shopZonePos.x+WORLD)*scale,mz=(shopZonePos.z+WORLD)*scale;
+        ctx.fillStyle='#ff00ff'; ctx.fillRect(mx-4,mz-4,8,8);
+      }
+      ctx.fillStyle='#ffd700';
+      cashPickups.forEach(c=>{
+        const mx=(c.position.x+WORLD)*scale,mz=(c.position.z+WORLD)*scale;
+        ctx.fillRect(mx-1,mz-1,3,3);
+      });
+      ctx.fillStyle='#ff2222';
+      enemies.forEach(e=>{
+        const mx=(e.position.x+WORLD)*scale,mz=(e.position.z+WORLD)*scale;
+        ctx.beginPath(); ctx.arc(mx,mz,3,0,Math.PI*2); ctx.fill();
+        if(e.userData.state==='chase') { ctx.strokeStyle='#ff8888'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(mx,mz,6,0,Math.PI*2); ctx.stroke(); }
+      });
+      ctx.fillStyle='#ff8800';
+      asaltantes.forEach(a=>{
+        const mx=(a.position.x+WORLD)*scale,mz=(a.position.z+WORLD)*scale;
+        ctx.beginPath(); ctx.arc(mx,mz,3,0,Math.PI*2); ctx.fill();
+      });
+      const px=(playerObj.position.x+WORLD)*scale, pz=(playerObj.position.z+WORLD)*scale;
+      ctx.fillStyle='#00ff41';
+      ctx.beginPath(); ctx.arc(px,pz,4,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#00ff41'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(px,pz);
+      ctx.lineTo(px+Math.sin(-camYaw)*10, pz+Math.cos(-camYaw)*10);
+      ctx.stroke();
+    };
+    let ivaInZoneTimer = 0;
+    let spawnTimer = 0;
+    let asaltanteSpawnTimer = 0;
+    const gameUpdate = (delta) => {
+      if(!gameRunning || !playerObj) return;
+      survivalTime.value += delta;
+      score.value = Math.floor(survivalTime.value*10 + totalCashCollected.value/50);
+      const spd = playerSpeed.value;
+      const moveDir = new THREE.Vector3();
+      if(keys['KeyW']||keys['ArrowUp']) moveDir.z -= 1;
+      if(keys['KeyS']||keys['ArrowDown']) moveDir.z += 1;
+      if(keys['KeyA']||keys['ArrowLeft']) moveDir.x -= 1;
+      if(keys['KeyD']||keys['ArrowRight']) moveDir.x += 1;
+      if(moveDir.length() > 0) {
+        moveDir.normalize();
+        moveDir.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), camYaw));
+        playerObj.position.x += moveDir.x * spd;
+        playerObj.position.z += moveDir.z * spd;
+      }
+      if((keys['Space'])&&isOnGround) {
+        playerVel.y = 8;
+        isOnGround = false;
+        playBeep(300,0.1,'sine',0.1);
+      }
+      playerVel.y -= 20*delta;
+      playerObj.position.y += playerVel.y * delta;
+      if(playerObj.position.y < 0) { playerObj.position.y = 0; playerVel.y = 0; isOnGround = true; }
+      playerObj.position.x = Math.max(-WORLD+1, Math.min(WORLD-1, playerObj.position.x));
+      playerObj.position.z = Math.max(-WORLD+1, Math.min(WORLD-1, playerObj.position.z));
+      playerObj.rotation.y = camYaw;
+      camera.rotation.x = camPitch;
+      checkNearbyObjects();
+      let inLaunder = false;
+      moneyLaunders.forEach(m => {
+        if(playerObj.position.distanceTo(m.position) < 4) { inLaunder = true; }
+      });
+      ivaZone.value = inLaunder;
+      if(inLaunder) {
+        ivaInZoneTimer += delta;
+        if(ivaInZoneTimer > 3) { 
+          if(ivaInZoneTimer < 3.1) addNotif('ADVERTENCIA: Si permaneces aqui el IVA te cobrara $1,000 por segundo!', 'warning', 4000);
+        }
+        if(ivaInZoneTimer > 5) {
+          const ivaCost = Math.round(1000 * delta * taxReduction.value);
+          playerMoney.value = Math.max(0, playerMoney.value - ivaCost);
+          ivaTotal.value += ivaCost;
+          if(Math.random() < 0.1) addFloat(`-$${ivaCost} IVA`, window.innerWidth/2+Math.random()*100-50, window.innerHeight/2, 'negative');
+          if(playerMoney.value <= 0) triggerGameOver('El IVA de la lavanderia te dejo sin dinero. Paradojas de la vida.');
+        }
+      } else {
+        ivaInZoneTimer = 0;
+      }
+      enemies.forEach(e => updateEnemyAI(e, delta));
+      asaltantes.forEach(a => updateAsaltanteAI(a, delta));
+      spawnTimer += delta;
+      if(spawnTimer > Math.max(10, 30 - survivalTime.value/30)) {
+        spawnTimer = 0;
+        if(enemies.length < 12) {
+          spawnEnemy();
+          addNotif('NUEVO AGENTE DEL SAT DETECTADO EN LA ZONA', 'danger', 2500);
+          playAlert();
+        }
+      }
+      asaltanteSpawnTimer += delta;
+      if(asaltanteSpawnTimer > 45 && asaltantes.length < 2) {
+        asaltanteSpawnTimer = 0;
+        const angle = Math.random()*Math.PI*2;
+        createAsaltante(Math.cos(angle)*(15+Math.random()*10), Math.sin(angle)*(15+Math.random()*10));
+        addNotif('ASALTANTE en la zona. El SAT ya viene por su cuchillo sin deducir.', 'funny', 4000);
+      }
+      if(Math.floor(survivalTime.value)%30===0 && survivalTime.value > 1 && delta < 0.02) {
+        const drain = Math.round(200*taxReduction.value);
+        playerMoney.value = Math.max(0, playerMoney.value - drain);
+        ivaTotal.value += drain;
+      }
+      cashPickups.forEach((c,i) => { c.rotation.y += delta; });
+      moneyLaunders.forEach(m => { m.children[2].material.opacity = 0.05+0.05*Math.sin(Date.now()*0.003); });
+      updateMinimap();
+      if(isHidden.value) statusText.value = 'INMUNIDAD POLITICA ACTIVA';
+      else if(enemies.some(e=>e.userData.state==='chase')) statusText.value = 'SAT TE PERSIGUE! CORRE!';
+      else statusText.value = '';
+    };
+    const animate = () => {
+      gameLoop = requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.05);
+      if(state.value==='playing') gameUpdate(delta);
+      if(renderer && scene && camera) renderer.render(scene, camera);
+    };
+    const triggerGameOver = (reason) => {
+      gameRunning = false;
+      gameOverReason.value = reason;
+      if(survivalTime.value > bestTime.value) bestTime.value = survivalTime.value;
+      state.value = 'gameover';
+      if(document.pointerLockElement) document.exitPointerLock();
+    };
+    const startGame = async () => {
+      playerMoney.value = 20000;
+      cashInventory.value = 0;
+      survivalTime.value = 0;
+      score.value = 0;
+      isHidden.value = false;
+      ivaZone.value = false;
+      interactHint.value = '';
+      weapons.value = [];
+      ownedItems.value = [];
+      activeWeapon.value = 0;
+      totalCashCollected.value = 0;
+      satEvaded.value = 0;
+      timeRobbed.value = 0;
+      ivaTotal.value = 0;
+      ivaInZoneTimer = 0;
+      spawnTimer = 0;
+      asaltanteSpawnTimer = 0;
+      playerSpeed.value = 0.08;
+      shieldActive.value = false;
+      taxReduction.value = 1.0;
+      notifications.value = [];
+      floatNumbers.value = [];
+      keys = {};
+      camYaw = 0; camPitch = 0;
+      state.value = 'playing';
+      await nextTick();
+      if(renderer) { cancelAnimationFrame(gameLoop); renderer.dispose(); }
+      enemies = []; cashPickups = []; moneyLaunders = []; hideSpots = []; asaltantes = [];
+      shopZone = null; shopZonePos = null;
+      nearObject = null;
+      isOnGround = true;
+      playerVel = {x:0,y:0,z:0};
+      initScene();
+      animate();
+      gameRunning = true;
+      const canvas = document.getElementById('gameCanvas');
+      canvas.addEventListener('click', () => {
+        if(state.value === 'playing') {
+          if(!pointerLocked) {
+            canvas.requestPointerLock();
+          } else {
+            handleShoot();
+          }
+        }
+      });
+
+      addNotif('BIENVENIDO! Sobrevive el mayor tiempo posible. El SAT no descansa.', 'info', 5000);
+      setTimeout(()=>addNotif('TIP: Recoge efectivo y llevalo al Lavado de Dinero para recuperar tu tarjeta', 'success', 5000), 3000);
+      setTimeout(()=>addNotif('TIP: Escondete en edificios del PRI - Inmunidad politica incluida!', 'funny', 5000), 7000);
+    };
+    const resumeGame = () => {
+      state.value = 'playing';
+      gameRunning = true;
+      document.getElementById('gameCanvas')?.requestPointerLock?.();
+    };
+    const quitToMenu = () => {
+      gameRunning = false;
+      if(gameLoop) cancelAnimationFrame(gameLoop);
+      if(document.pointerLockElement) document.exitPointerLock();
+      state.value = 'menu';
+    };
+    const handleResize = () => {
+      if(!renderer||!camera) return;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+    };
+    onMounted(async () => {
+      initAudio();
+      document.addEventListener('keydown', onKeyDown);
+      document.addEventListener('keyup', onKeyUp);
+      document.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('resize', handleResize);
+      document.addEventListener('pointerlockchange', ()=>{ pointerLocked = document.pointerLockElement !== null; });
+      const msgs = ['Cargando contribuyentes...','Calculando ISR...','Generando facturas CFDI...','Auditando balance...','Preparando agentes del SAT...','Instalando base de datos del PRI...','Buscando CDs piratas...','Listo!'];
+      for(let i=0;i<msgs.length;i++) {
+        loadMsg.value = msgs[i];
+        loadPct.value = Math.round((i+1)/msgs.length*100);
+        await new Promise(r=>setTimeout(r,300+Math.random()*200));
+      }
+      state.value = 'menu';
+    });
+    onUnmounted(()=>{
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('resize', handleResize);
+      if(gameLoop) cancelAnimationFrame(gameLoop);
+    });
+    return {
+      state, loadPct, loadMsg, settings, controlLabels,
+      playerMoney, maxMoney, cashInventory, survivalTime, score, bestTime,
+      isHidden, ivaZone, interactHint, statusText, notifications, floatNumbers,
+      gameOverReason, weapons, activeWeapon, ownedItems,
+      totalCashCollected, satEvaded, timeRobbed, ivaTotal,
+      shopItems, minimapCanvas,
+      shootFlash, shootFlashKey,
+      formatMoney, formatTime,
+      startGame, resumeGame, quitToMenu,
+      openSettings, closeSettings, saveSettings, rebindKey,
+      openShop, closeShop, buyItem,
+      prevState
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
